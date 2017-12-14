@@ -142,7 +142,7 @@ func (b Board) IsValidMove(move *Move) error {
 }
 
 // nonCaptureMoves returns a list of non capture moves from `square` --
-// 0, 1, 2 (4, 5 for kings) possible squares. NON-KING
+// 0, 1, 2 (4, 5 for kings) possible squares.
 func (b Board) nonCaptureMoves(player int, square Pos) []*Move {
 	rows := []int{direction(player)}
 	if b.Get(square) < 0 {
