@@ -246,7 +246,7 @@ func (b Board) CountPieces() (int, int) {
 	player1, player2 := 0, 0
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
-			switch b.Get(Pos{x, y}) {
+			switch abs(b.Get(Pos{x, y})) {
 			case 1:
 				player1++
 			case 2:
