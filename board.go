@@ -231,7 +231,7 @@ func (b *Board) AllMoves(player int) []*Move {
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
 			pos := Pos{x, y}
-			if b.Get(pos) == player {
+			if abs(b.Get(pos)) == player {
 				movesList = append(movesList, b.nonCaptureMoves(player, pos)...)
 				jumpMoves(b, pos, NewMove(player, pos), &movesList)
 			}
