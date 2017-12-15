@@ -22,8 +22,8 @@ func coloured(squareState, key int) {
 	fmt.Printf("|")
 }
 
-// displayStandardNotation prints out square numbers, coloured by player
-func displayStandardNotation(b *Board) {
+// Display prints out square numbers, coloured by player
+func Display(b *Board) {
 	rCount, gCount := 0, 0
 	fmt.Print("  +-----+-----+-----+-----+-----+-----+-----+-----+\n")
 	key := 1

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -22,27 +24,22 @@ func NewMove(player int, pos ...Pos) *Move {
 	return m
 }
 
-// Captures returns true if the move captures any of the opposition's pieces.
-// It is assumed to be valid
-func (m Move) Captures() bool {
-	if len(m.Squares) > 2 {
-		return true
+// ReadMove creates a move from stdin input
+func ReadMove(player int) (*Move, error) {
+	reader := bufio.NewReader(os.Stdin)
+	moveStr, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, err
 	}
-	if len(m.Squares) == 2 {
-		dY := m.Squares[1].Y - m.Squares[0].Y
-		if dY > 1 || dY < -1 {
-			return true
-		}
-	}
-
-	return false
+	moveStr = strings.Trim(moveStr, " \n")
+	return ParseMove(moveStr, player)
 }
 
 // ValidJumpSequence tests if all transitions in a move skips a square
 // diagonally and in the same Y-direction
 func (m Move) ValidJumpSequence() bool {
 	direction := 0
-	for i := 0; i < len(m.Squares)-1; i++ {
+	for i := 0; i < m.Length()-1; i++ {
 		first := m.Squares[i]
 		second := m.Squares[i+1]
 		jumped, dir := IsJump(first, second)
@@ -64,7 +61,7 @@ func (m Move) ValidJumpSequence() bool {
 // simple moves (arrow separator) and capture moves (cross separator)
 func (m Move) AsString() string {
 	separator := ` ➤ `
-	if m.Captures() {
+	if m.IsJump() {
 		separator = ` ☓ `
 	}
 	data := []string{}
@@ -80,7 +77,7 @@ func (m Move) AsString() string {
 func (m Move) JumpedSquares() []Pos {
 	list := []Pos{}
 
-	for index := 0; index < len(m.Squares)-1; index++ {
+	for index := 0; index < m.Length()-1; index++ {
 		start := m.Squares[index]
 		end := m.Squares[index+1]
 
@@ -115,4 +112,57 @@ func ParseMove(moveStr string, player int) (*Move, error) {
 	}
 
 	return move, nil
+}
+
+// IsJump returns true if the move is a capture sequence
+func (m Move) IsJump() bool {
+	jumps := false
+	if len(m.Squares) > 1 {
+		jumps, _ = IsJump(m.Squares[0], m.Squares[1])
+	}
+
+	return jumps
+}
+
+// Length returns the number of squares in the move
+func (m Move) Length() int {
+	return len(m.Squares)
+}
+
+// Equals compares two moves for equality
+func (m Move) Equals(move *Move) bool {
+	// Only check positions
+	if m.Length() != move.Length() {
+		return false
+	}
+
+	for i, pos := range m.Squares {
+		if pos != move.Squares[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// CapturesAvailable returns true if any move in a list is a capture sequence
+func CapturesAvailable(movesList []*Move) bool {
+	for _, move := range movesList {
+		if move.IsJump() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ContainsMove checks a move against a list of moves to determine if it is
+// present
+func ContainsMove(movesList []*Move, move *Move) bool {
+	for _, candidate := range movesList {
+		if candidate.Equals(move) {
+			return true
+		}
+	}
+
+	return false
 }

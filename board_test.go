@@ -1,9 +1,11 @@
 package main
 
-import "testing"
-import "fmt"
+import (
+	"fmt"
+	"testing"
+)
 
-func TestMakeMove(t *testing.T) {
+func TestApply(t *testing.T) {
 	player := 1
 
 	board := &Board{[8][8]int{
@@ -30,19 +32,15 @@ func TestMakeMove(t *testing.T) {
 
 	move := NewMove(player, Pos{2, 3}, Pos{4, 5})
 
-	newBoard, err := board.MakeMove(move)
+	newBoard := board.Apply(move)
 
-	if err != nil {
-		t.Errorf("Error making move, %s", err)
-	} else {
-		if expected.state != newBoard.state {
-			t.Errorf("MakeMove didn't produce expected result after %s",
-				move.AsString())
-		}
+	if expected.state != newBoard.state {
+		t.Errorf("Apply didn't produce expected result after %s",
+			move.AsString())
 	}
 }
 
-func TestIsValidMove(t *testing.T) {
+func TestValidate(t *testing.T) {
 	player := 1
 
 	board := &Board{[8][8]int{
@@ -58,16 +56,16 @@ func TestIsValidMove(t *testing.T) {
 
 	// non-diagonal move
 	move := NewMove(player, Pos{5, 2}, Pos{5, 3})
-	err := board.IsValidMove(move)
+	err := board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 1 as legal")
+		t.Error("Validate reported illegal move 1 as legal")
 	}
 
 	// jump to occupied square
 	move = NewMove(Opposition(player), Pos{3, 3}, Pos{2, 3})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 2 as legal")
+		t.Error("Validate reported illegal move 2 as legal")
 	}
 
 	board = &Board{[8][8]int{
@@ -83,9 +81,9 @@ func TestIsValidMove(t *testing.T) {
 
 	// non-jump following jump
 	move = NewMove(player, Pos{3, 3}, Pos{1, 5}, Pos{0, 6})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 3 as legal")
+		t.Error("Validate reported illegal move 3 as legal")
 	}
 
 	board = &Board{[8][8]int{
@@ -101,27 +99,27 @@ func TestIsValidMove(t *testing.T) {
 
 	// jump following non-jump
 	move = NewMove(player, Pos{3, 3}, Pos{2, 4}, Pos{0, 6})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 4 as legal")
+		t.Error("Validate reported illegal move 4 as legal")
 	}
 
 	// non-king backwards diagonal
 	move = NewMove(player, Pos{3, 3}, Pos{4, 2})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 5 as legal")
+		t.Error("Validate reported illegal move 5 as legal")
 	}
 
 	// non-jump move not to adjacent square
 	move = NewMove(player, Pos{5, 2}, Pos{3, 4})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 6 as legal")
+		t.Error("Validate reported illegal move 6 as legal")
 	}
 }
 
-func TestIsValidMoveKing(t *testing.T) {
+func TestValidateKing(t *testing.T) {
 	player := 2
 
 	board := &Board{[8][8]int{
@@ -136,21 +134,21 @@ func TestIsValidMoveKing(t *testing.T) {
 	}}
 
 	move := NewMove(player, Pos{3, 4}, Pos{5, 6})
-	err := board.IsValidMove(move)
+	err := board.Validate(move)
 	if err != nil {
-		t.Errorf("IsValidMove reported legal move 1 as illegal, %s", err)
+		t.Errorf("Validate reported legal move 1 as illegal, %s", err)
 	}
 
 	move = NewMove(player, Pos{3, 4}, Pos{5, 2})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err != nil {
-		t.Errorf("IsValidMove reported legal move 2 as illegal, %s", err)
+		t.Errorf("Validate reported legal move 2 as illegal, %s", err)
 	}
 
 	move = NewMove(player, Pos{3, 4}, Pos{6, 1})
-	err = board.IsValidMove(move)
+	err = board.Validate(move)
 	if err == nil {
-		t.Error("IsValidMove reported illegal move 2 as legal")
+		t.Error("Validate reported illegal move 2 as legal")
 	}
 }
 
@@ -197,8 +195,6 @@ func TestAvailableJumpsKing(t *testing.T) {
 }
 
 func TestJumpMoves(t *testing.T) {
-	movesList := []*Move{}
-
 	player := 1
 
 	board := &Board{[8][8]int{
@@ -213,7 +209,7 @@ func TestJumpMoves(t *testing.T) {
 	}}
 
 	pos := Pos{2, 3}
-	jumpMoves(board, pos, NewMove(player, pos), &movesList)
+	movesList := board.JumpMoves(player, pos)
 
 	if len(movesList) != 2 {
 		t.Errorf("Expected 2 available jump moves, found %d", len(movesList))
@@ -296,9 +292,40 @@ func TestAllMovesGeneratedAreValid(t *testing.T) {
 	}}
 
 	for _, move := range board.AllMoves(player) {
-		err := board.IsValidMove(move)
+		err := board.Validate(move)
 		if err != nil {
 			t.Errorf("Generated move %s reported invalid", move.AsString())
+		}
+	}
+}
+
+func TestContainsMove(t *testing.T) {
+	player := 2
+
+	board := &Board{[8][8]int{
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, -2, 0, 1, 0},
+		{0, -1, 0, 1, 0, 0, 0, 0},
+		{0, 0, 0, 0, -1, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, -1, 0, 0, 0},
+	}}
+
+	move := NewMove(player, Pos{4, 1}, Pos{2, 3})
+	err := board.Validate(move)
+	if err != nil {
+		t.Errorf("Generated move %s reported invalid", move.AsString())
+	}
+
+	allMoves := board.AllMoves(player)
+	if !ContainsMove(allMoves, move) {
+		t.Errorf("Complete capture move %s reported incomplete", move.AsString())
+
+		fmt.Printf("All moves:\n")
+		for _, m := range allMoves {
+			fmt.Printf("%s\n", m.AsString())
 		}
 	}
 }

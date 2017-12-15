@@ -50,42 +50,37 @@ func (b *Board) Set(p Pos, state int) {
 	b.state[p.Y][p.X] = state
 }
 
-// MakeMove moves a piece according to `move` (if valid) and returns a new
-// state
-func (b Board) MakeMove(move *Move) (*Board, error) {
-	err := b.IsValidMove(move)
-	if err == nil {
-		startPos := move.Squares[0]
-		startPiece := b.Get(startPos)
-		newBoard := &Board{b.state}
+// Apply moves a piece according to `move` and returns a new
+// state. The move must be legal.
+func (b Board) Apply(move *Move) *Board {
+	startPos := move.Squares[0]
+	startPiece := b.Get(startPos)
+	newBoard := &Board{b.state}
 
-		// Blank out the starting square of the move
-		newBoard.Set(startPos, 0)
+	// Blank out the starting square of the move
+	newBoard.Set(startPos, 0)
 
-		// Remove any captured pieces we jumped from the board
-		for _, square := range move.JumpedSquares() {
-			newBoard.Set(square, 0)
-		}
-
-		// Land on the final square
-		final := move.Squares[len(move.Squares)-1]
-
-		// If not already a king, and we've landed on either baseline
-		// we get a coronation.
-		if startPiece > 0 && final.Y == 0 || final.Y == 7 {
-			newBoard.Set(final, -startPiece) // Coronation
-		} else {
-			newBoard.Set(final, startPiece) // Maintain king status
-		}
-
-		return newBoard, nil
+	// Remove any captured pieces we jumped from the board
+	for _, square := range move.JumpedSquares() {
+		newBoard.Set(square, 0)
 	}
 
-	return nil, fmt.Errorf("Invalid move: %s (%s)", move.AsString(), err)
+	// Land on the final square
+	final := move.Squares[move.Length()-1]
+
+	// If not already a king, and we've landed on either baseline
+	// we get a coronation.
+	if startPiece > 0 && final.Y == 0 || final.Y == 7 {
+		newBoard.Set(final, -startPiece) // Coronation
+	} else {
+		newBoard.Set(final, startPiece)
+	}
+
+	return newBoard
 }
 
-// IsValidMove traverses a chain of squares to dermine if the move is legal
-func (b Board) IsValidMove(move *Move) error {
+// Validate traverses a chain of squares to dermine if the move is legal
+func (b Board) Validate(move *Move) error {
 	// Start square has to be held by `player`
 	startPos := move.Squares[0]
 	startPiece := b.Get(startPos)
@@ -96,11 +91,11 @@ func (b Board) IsValidMove(move *Move) error {
 	// If we have more that one transition (more than two squares), then all
 	// transitions must be jumps. Note, this doesn't verify the actual state
 	// of the board, just the coordinates.
-	if len(move.Squares) > 2 && !move.ValidJumpSequence() {
+	if move.Length() > 2 && !move.ValidJumpSequence() {
 		return fmt.Errorf("Move is not a valid jump sequence")
 	}
 
-	for index := 1; index < len(move.Squares); index++ {
+	for index := 1; index < move.Length(); index++ {
 		endPos := move.Squares[index]
 
 		// endPos has to be available
@@ -144,6 +139,7 @@ func (b Board) IsValidMove(move *Move) error {
 // nonCaptureMoves returns a list of non capture moves from `square` --
 // 0, 1, 2 (4, 5 for kings) possible squares.
 func (b Board) nonCaptureMoves(player int, square Pos) []*Move {
+	cols := []int{-1, 1}
 	rows := []int{direction(player)}
 	if b.Get(square) < 0 {
 		// Kings can go both backwards and forwards
@@ -152,7 +148,7 @@ func (b Board) nonCaptureMoves(player int, square Pos) []*Move {
 
 	moves := []*Move{}
 	for _, dY := range rows {
-		for _, dX := range []int{-1, 1} {
+		for _, dX := range cols {
 			if candidate, err := NewPos(square.X+dX, square.Y+dY); err == nil {
 				if b.Get(*candidate) == 0 {
 					moves = append(moves, NewMove(player, square, *candidate))
@@ -167,6 +163,7 @@ func (b Board) nonCaptureMoves(player int, square Pos) []*Move {
 // singleJumps returns a list of single jumpable positions from `square` --
 // 0, 1, 2 (4, 5 for kings) possible squares
 func (b Board) singleJumps(player int, square Pos) []Pos {
+	cols := []int{-1, 1}
 	rows := []int{direction(player)}
 	if b.Get(square) < 0 {
 		// Kings can go both backwards and forwards
@@ -176,7 +173,7 @@ func (b Board) singleJumps(player int, square Pos) []Pos {
 	jumps := []Pos{}
 
 	for _, dY := range rows {
-		for _, dX := range []int{-1, 1} {
+		for _, dX := range cols {
 			if first, err := NewPos(square.X+dX, square.Y+dY); err == nil {
 				if abs(b.Get(*first)) == Opposition(player) {
 					if second, err := NewPos(first.X+dX, first.Y+dY); err == nil {
@@ -192,33 +189,50 @@ func (b Board) singleJumps(player int, square Pos) []Pos {
 	return jumps
 }
 
-// jumpMoves finds all available capture moves starting at `square`, including
-// multi-hops
-func jumpMoves(board *Board, square Pos, move *Move, moves *[]*Move) {
-	player := move.Player
-	jumps := board.singleJumps(player, square)
-	if len(jumps) == 0 {
-		if len(move.Squares) > 1 {
-			*moves = append(*moves, move)
+// JumpMoves finds all available capture moves starting at `square`, including
+// multi-hops and king moves
+func (b Board) JumpMoves(player int, square Pos) []*Move {
+	movesList := []*Move{}
+	b.jumpMoves(&Board{b.state}, square, NewMove(player, square), &movesList)
+
+	return movesList
+}
+
+// validDirection discards potential jump squares based on the prevaling
+// direction already set in the move. This is to ensure that kings, whilst
+// allowed to go both forward and back still stick to a single direction
+// within each single move.
+func validDirection(jumps []Pos, move *Move) []Pos {
+	if move.Length() == 1 {
+		// We have no prevaling direction, so any jumps may be considered
+		return jumps
+	}
+
+	dY := move.Squares[1].Y - move.Squares[0].Y
+
+	sameDirection := []Pos{}
+	for _, jmp := range jumps {
+		if jmp.Y-move.Squares[1].Y == dY {
+			sameDirection = append(sameDirection, jmp)
 		}
+	}
+
+	return sameDirection
+}
+
+func (b Board) jumpMoves(state *Board, square Pos, move *Move, moves *[]*Move) {
+	player := move.Player
+	jumps := validDirection(b.singleJumps(player, square), move)
+
+	if len(jumps) == 0 && move.Length() > 1 {
+		*moves = append(*moves, move)
 		return
 	}
 
 	for _, jmp := range jumps {
-		// Apply a move from square -> jmp
-		newBoard, _ := board.MakeMove(NewMove(player, square, jmp))
-
-		// Record this in the current move..
-		move.addSquare(jmp)
-
-		// End recursion if square -> jmp takes us to the edge to avoid
-		// a jump sequence turning king half-way through, and so changing
-		// direction
-		if jmp.Y == 0 || jmp.Y == 7 {
-			*moves = append(*moves, move)
-		} else {
-			jumpMoves(newBoard, jmp, move, moves) // Walk the tree depth-first
-		}
+		newState := state.Apply(NewMove(player, square, jmp))
+		move.addSquare(jmp)                     // Record this in current move..
+		b.jumpMoves(newState, jmp, move, moves) // Walk the tree depth-first
 
 		// Now make a fresh move for when we follow the next branch
 		move = NewMove(player, square)
@@ -233,43 +247,10 @@ func (b *Board) AllMoves(player int) []*Move {
 			pos := Pos{x, y}
 			if abs(b.Get(pos)) == player {
 				movesList = append(movesList, b.nonCaptureMoves(player, pos)...)
-				jumpMoves(b, pos, NewMove(player, pos), &movesList)
+				movesList = append(movesList, b.JumpMoves(player, pos)...)
 			}
 		}
 	}
 
 	return movesList
-}
-
-// CountPieces counts the pieces for each player
-func (b Board) CountPieces() (int, int) {
-	player1, player2 := 0, 0
-	for y := 0; y < 8; y++ {
-		for x := 0; x < 8; x++ {
-			switch abs(b.Get(Pos{x, y})) {
-			case 1:
-				player1++
-			case 2:
-				player2++
-			}
-		}
-	}
-
-	return player1, player2
-}
-
-// Winner returns true if there is a winner
-func (b Board) Winner(player int) bool {
-	player1, player2 := b.CountPieces()
-	if player1 == 0 || player2 == 0 {
-		return true
-	}
-
-	playerMoves := b.AllMoves(player)
-
-	if len(playerMoves) == 0 {
-		return true
-	}
-
-	return false
 }
