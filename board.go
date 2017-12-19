@@ -2,6 +2,12 @@ package main
 
 import "fmt"
 
+// PieceCount is the count of mens and kings
+type PieceCount struct {
+	men   [2]int
+	kings [2]int
+}
+
 // Opposition is the other player
 func Opposition(player int) int {
 	if player == 1 {
@@ -241,16 +247,45 @@ func (b Board) jumpMoves(state *Board, square Pos, move *Move, moves *[]*Move) {
 
 // AllMoves returns a list of all valid moves for `player`
 func (b *Board) AllMoves(player int) []*Move {
-	movesList := []*Move{}
+	jumpMoves := []*Move{}
+	nonJumpMoves := []*Move{}
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
 			pos := Pos{x, y}
 			if abs(b.Get(pos)) == player {
-				movesList = append(movesList, b.nonCaptureMoves(player, pos)...)
-				movesList = append(movesList, b.JumpMoves(player, pos)...)
+				jumpMoves = append(jumpMoves, b.JumpMoves(player, pos)...)
+				nonJumpMoves = append(nonJumpMoves, b.nonCaptureMoves(player, pos)...)
 			}
 		}
 	}
 
-	return movesList
+	if len(jumpMoves) > 0 {
+		return jumpMoves
+	}
+
+	return nonJumpMoves
+}
+
+// CountPieces ...
+func (b Board) CountPieces() *PieceCount {
+	pc := &PieceCount{}
+
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			switch b.Get(Pos{x, y}) {
+			case 2:
+				pc.men[1]++
+			case -2:
+				pc.kings[1]++
+
+			case 1:
+				pc.men[0]++
+			case -1:
+				pc.kings[0]++
+			default:
+			}
+		}
+	}
+
+	return pc
 }

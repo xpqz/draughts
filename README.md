@@ -110,6 +110,21 @@ func (b Board) jumpMoves(state *Board, square Pos, move *Move, moves *[]*Move) {
 }
 ```
 
+## Computer opponent
+
+With the game mechanics in place, implementing a simplistic "AI" opponent is
+relatively straight-forward. The function `minimax()` is a recursive descent
+optimisation strategy to find the best move that simultaneously maximises the
+player's standing and minimising that of the opponent to a certain depth of the
+game tree. The key here is to have a good heuristic for evaluating board state.
+
+The current implementation uses a polynomial combination of piece counts and
+available moves, as given my the function `HeuristicValue()` in `minimax.go`.
+
+The minimax implementation is naive, and would benefit from taking advantage of
+the strategy known as alpha-beta pruning to allow it to search deeper in the
+game tree. Currently it goes 6 levels deep.
+
 ## Game loop
 
 The main game loop is found in `draughs.go`.
