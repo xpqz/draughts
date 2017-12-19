@@ -270,10 +270,11 @@ func TestAllMoves(t *testing.T) {
 		{2, 0, 0, 0, 2, 0, 2, 0},
 	}}
 
+	// If jump moves are present only they count, so only 2
 	movesList := board.AllMoves(player)
 
-	if len(movesList) != 8 {
-		t.Errorf("Expected to find 9 valid moves, found %d", len(movesList))
+	if len(movesList) != 2 {
+		t.Errorf("Expected to find 2 valid moves, found %d", len(movesList))
 	}
 }
 

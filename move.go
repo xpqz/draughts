@@ -72,6 +72,23 @@ func (m Move) AsString() string {
 	return fmt.Sprintf("%d: %s", m.Player, strings.Join(data, separator))
 }
 
+// AsPDNString returns a string representation of a move chain for
+// display and error reporting purposes, using the PDN square. It
+// distinguishes between simple moves (arrow separator) and capture moves
+// (cross separator)
+func (m Move) AsPDNString() string {
+	separator := ` ➤ `
+	if m.IsJump() {
+		separator = ` ☓ `
+	}
+	data := []string{}
+	for _, square := range m.Squares {
+		data = append(data, fmt.Sprintf("%d", square.AsPDNSquare()))
+	}
+
+	return fmt.Sprintf("%s", strings.Join(data, separator))
+}
+
 // JumpedSquares returns a list of all squares that were jumped over
 // This works for either up or down the board
 func (m Move) JumpedSquares() []Pos {

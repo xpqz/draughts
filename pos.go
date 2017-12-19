@@ -32,6 +32,24 @@ func NewPosFromSquareID(squareNumber int) Pos {
 	return Pos{pair[0], pair[1]}
 }
 
+// AsPDNSquare does the opposite of NewPosFromSquareID
+func (p Pos) AsPDNSquare() int {
+	pdnSquares := map[Pos]int{
+		Pos{1, 0}: 1, Pos{3, 0}: 2, Pos{5, 0}: 3, Pos{7, 0}: 4,
+		Pos{0, 1}: 5, Pos{2, 1}: 6, Pos{4, 1}: 7, Pos{6, 1}: 8,
+		Pos{1, 2}: 9, Pos{3, 2}: 10, Pos{5, 2}: 11, Pos{7, 2}: 12,
+		Pos{0, 3}: 13, Pos{2, 3}: 14, Pos{4, 3}: 15, Pos{6, 3}: 16,
+		Pos{1, 4}: 17, Pos{3, 4}: 18, Pos{5, 4}: 19, Pos{7, 4}: 20,
+		Pos{0, 5}: 21, Pos{2, 5}: 22, Pos{4, 5}: 23, Pos{6, 5}: 24,
+		Pos{1, 6}: 25, Pos{3, 6}: 26, Pos{5, 6}: 27, Pos{7, 6}: 28,
+		Pos{0, 7}: 29, Pos{2, 7}: 30, Pos{4, 7}: 31, Pos{6, 7}: 32,
+	}
+
+	sq, _ := pdnSquares[p]
+
+	return sq
+}
+
 // AsString returns a string representation of a coordinate for
 // display and error reporting purposes
 func (p Pos) AsString() string {

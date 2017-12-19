@@ -48,4 +48,7 @@ func Display(b *Board) {
 	}
 	fmt.Printf("  \033[31m[Red: %d]\033[39m \033[32m[Green: %d]\033[39m\n",
 		rCount, gCount)
+	// fmt.Printf("  \033[31m[Score: %d]\033[39m \033[32m[Score: %d]\033[39m\n",
+	// 	eval(b, 1), eval(b, 2))
+
 }
